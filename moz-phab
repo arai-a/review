@@ -796,6 +796,9 @@ class Repository(object):
             api_method: The API method name to call, like 'differential.revision.edit'.
             api_call_args: JSON dict of call args to send.
 
+        Returns:
+            JSON API call result object
+
         Raises:
             ConduitAPIError if the API threw an error back at us.
         """

@@ -149,10 +149,8 @@ def in_process(monkeypatch, safe_environ, request):
         return True
 
     def arc_out(self, *args, **kwargs):
-        # Return alice as the only valid reviewer name from Phabricator.
-        # See https://phabricator.services.mozilla.com/api/user.search
         return json.dumps(
-            {"error": None, "errorMessage": None, "response": [{"userName": "alice"}]}
+            {"error": None, "errorMessage": None, "response": {}}
         )
 
     def check_call_by_line_static(*args, **kwargs):
@@ -163,6 +161,12 @@ def in_process(monkeypatch, safe_environ, request):
         request.module, "check_call_by_line", check_call_by_line_static
     )
 
+    def call_conduit(self, *args):
+        # Return alice as the only valid reviewer name from Phabricator.
+        # See https://phabricator.services.mozilla.com/api/user.search
+        return [{"userName": "alice"}]
+
     monkeypatch.setattr(mozphab, "arc_ping", arc_ping)
     monkeypatch.setattr(mozphab, "arc_out", arc_out)
     monkeypatch.setattr(mozphab, "check_call_by_line", check_call_by_line)
+    monkeypatch.setattr(mozphab.Repository, "call_conduit", call_conduit)

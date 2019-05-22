@@ -213,32 +213,25 @@ class Helpers(unittest.TestCase):
         m_which.assert_called_once_with(path)
 
 
-@mock.patch("mozphab.arc_out")
-def test_valid_reviewers_in_phabricator_returns_no_errors(arc_out):
+@mock.patch("mozphab.Repository.call_conduit")
+def test_valid_reviewers_in_phabricator_returns_no_errors(call_conduit):
     # See https://phabricator.services.mozilla.com/api/user.search
-    arc_out.side_effect = (
+    call_conduit.side_effect = (
         # user.query
-        json.dumps(
-            {"error": None, "errorMessage": None, "response": [{"userName": "alice"}]}
-        ),
+        [{"userName": "alice"}],
         # project.search
-        json.dumps(
-            {
-                "error": None,
-                "errorMessage": None,
-                "response": {
-                    "data": [{"fields": {"slug": "user-group"}}],
-                    "maps": {"slugMap": {"alias1": {}, "#alias2": {}}},
-                },
-            }
-        ),
+        {
+            "data": [{"fields": {"slug": "user-group"}}],
+            "maps": {"slugMap": {"alias1": {}, "#alias2": {}}},
+        },
     )
     reviewers = dict(granted=[], request=["alice", "#user-group", "#alias1", "#alias2"])
-    assert [] == mozphab.check_for_invalid_reviewers(reviewers, "")
+    repo = mozphab.Repository(None, None, "dummy")
+    assert [] == mozphab.check_for_invalid_reviewers(reviewers, repo)
 
 
-@mock.patch("mozphab.arc_out")
-def test_non_existent_reviewers_or_groups_generates_error_list(arc_out):
+@mock.patch("mozphab.Repository.call_conduit")
+def test_non_existent_reviewers_or_groups_generates_error_list(call_conduit):
     ts = 1543622400
     ts_str = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
     reviewers = dict(
@@ -252,28 +245,16 @@ def test_non_existent_reviewers_or_groups_generates_error_list(arc_out):
             "#gon-group",
         ],
     )
-    arc_out.side_effect = (
+    call_conduit.side_effect = (
         # user.query
-        json.dumps(
-            {
-                "error": None,
-                "errorMessage": None,
-                "response": [
-                    dict(userName="alice"),
-                    dict(
-                        userName="goober", currentStatus="away", currentStatusUntil=ts
-                    ),
-                ],
-            }
-        ),
+        [
+            dict(userName="alice"),
+            dict(
+                userName="goober", currentStatus="away", currentStatusUntil=ts
+            ),
+        ],
         # project.search
-        json.dumps(
-            {
-                "error": None,
-                "errorMessage": None,
-                "response": {"data": [{"fields": {"slug": "user-group"}}]},
-            }
-        ),
+        {"data": [{"fields": {"slug": "user-group"}}]},
     )
     expected_errors = [
         dict(name="goober", until=ts_str),
@@ -281,27 +262,21 @@ def test_non_existent_reviewers_or_groups_generates_error_list(arc_out):
         dict(name="#gon-group"),
         dict(name="goozer"),
     ]
-    assert expected_errors == mozphab.check_for_invalid_reviewers(reviewers, "")
+    repo = mozphab.Repository(None, None, "dummy")
+    assert expected_errors == mozphab.check_for_invalid_reviewers(reviewers, repo)
 
 
-@mock.patch("mozphab.arc_out")
-def test_reviwer_case_sensitivity(arc_out):
+@mock.patch("mozphab.Repository.call_conduit")
+def test_reviwer_case_sensitivity(call_conduit):
     reviewers = dict(granted=[], request=["Alice", "#uSeR-gRoUp"])
-    arc_out.side_effect = (
+    call_conduit.side_effect = (
         # See https://phabricator.services.mozilla.com/conduit/method/user.query/
-        json.dumps(
-            {"error": None, "errorMessage": None, "response": [dict(userName="alice")]}
-        ),
+        [dict(userName="alice")],
         # See https://phabricator.services.mozilla.com/conduit/method/project.search/
-        json.dumps(
-            {
-                "error": None,
-                "errorMessage": None,
-                "response": {"data": [{"fields": {"slug": "user-group"}}]},
-            }
-        ),
+        {"data": [{"fields": {"slug": "user-group"}}]},
     )
-    assert [] == mozphab.check_for_invalid_reviewers(reviewers, "")
+    repo = mozphab.Repository(None, None, "dummy")
+    assert [] == mozphab.check_for_invalid_reviewers(reviewers, repo)
 
 
 @mock.patch("mozphab.arc_out")
